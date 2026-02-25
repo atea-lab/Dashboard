@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atéa Lab - Dashboard Analytics</title>
+    <link href="https://fonts.cdnfonts.com/css/intro-rust" rel="stylesheet">
+    <link href="https://fonts.cdnfonts.com/css/open-sauce-one" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #a8957f;
+            --secondary: #d6bfa3;
+            --dark: #8a7a69;
+            --light: #f5f1ed;
+            --white: #ffffff;
+            --success: #4CAF50;
+            --warning: #FFA726;
+            --danger: #EF5350;
+        }
+
+        body {
+            font-family: 'Open Sauce One', sans-serif;
+            background: linear-gradient(135deg, var(--light) 0%, #e8e0d5 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--primary) 100%);
+            color: var(--white);
+            padding: 20px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-logo h1 {
+            font-family: 'Intro Rust', sans-serif;
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn-refresh {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.4);
+            color: var(--white);
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Open Sauce One', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-refresh:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .last-update {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        /* CONTAINER */
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 30px;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--secondary);
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            color: var(--dark);
+            padding: 15px 30px;
+            cursor: pointer;
+            font-family: 'Open Sauce One', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            color: var(--primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.4s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* KPI CARDS */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+
+        .kpi-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        .kpi-change {
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .kpi-change.positive {
+            background: rgba(76, 175, 80, 0.1);
+            color: var(--success);
+        }
+
+        .kpi-change.negative {
+            background: rgba(239, 83, 80, 0.1);
+            color: var(--danger);
+        }
+
+        /* CHARTS */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .chart-card h3 {
+            font-family: 'Intro Rust', sans-serif;
+            font-size: 1.3rem;
+            color: var(--dark);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* TABLE */
+        .table-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .table-card h3 {
+            font-family: 'Intro Rust', sans-serif;
+            font-size: 1.3rem;
+            color: var(--dark);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: var(--secondary);
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            color: var(--dark);
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tbody tr:hover {
+            background: var(--light);
+        }
+
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--dark);
+        }
+
+        .spinner {
+            border: 4px solid var(--light);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 15px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+
+            .tab {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+                white-space: nowrap;
+            }
+        }
+
+        /* EXPORT BUTTON */
+        .btn-export {
+            background: var(--success);
+            border: none;
+            color: var(--white);
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Open Sauce One', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-export:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        /* STATUS DOT */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-dot.success { background: var(--success); }
+        .status-dot.warning { background: var(--warning); }
+        .status-dot.danger { background: var(--danger); }
+
+        /* PROGRESS BAR */
+        .progress-bar {
+            background: var(--light);
+            height: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 0.6s ease;
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-logo">
+            <h1>Atéa Lab Analytics</h1>
+        </div>
+        <div class="header-actions">
+            <span class="last-update" id="lastUpdate">Dernière mise à jour : --:--</span>
+            <div style="display:flex;gap:6px;">
+                <button class="btn-refresh" id="btn30d" onclick="refreshData('30d')" style="padding:8px 14px;font-size:0.8rem;">30J</button>
+                <button class="btn-refresh" id="btn90d" onclick="refreshData('90d')" style="padding:8px 14px;font-size:0.8rem;opacity:0.6;">90J</button>
+            </div>
+            <button class="btn-refresh" onclick="refreshData()">🔄 Actualiser</button>
+            <button class="btn-export" onclick="exportToPDF()">📥 Exporter PDF</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('vue-ensemble')">📊 Vue d'ensemble</button>
+            <button class="tab" onclick="switchTab('ventes')">💰 Ventes</button>
+            <button class="tab" onclick="switchTab('trafic')">👥 Trafic</button>
+            <button class="tab" onclick="switchTab('prospects')">📋 Prospects</button>
+        </div>
+
+        <!-- TAB 1: VUE D'ENSEMBLE -->
+        <div id="vue-ensemble" class="tab-content active">
+            <!-- KPI CARDS -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">💰</div>
+                    <div class="kpi-label">Chiffre d'affaires</div>
+                    <div class="kpi-value" id="ca-total">0 €</div>
+                    <span class="kpi-change positive" id="ca-change">↗ +0%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-label">Nombre de ventes</div>
+                    <div class="kpi-value" id="ventes-total">0</div>
+                    <span class="kpi-change positive" id="ventes-change">↗ +0%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">👥</div>
+                    <div class="kpi-label">Visiteurs uniques</div>
+                    <div class="kpi-value" id="visiteurs-total">0</div>
+                    <span class="kpi-change positive" id="visiteurs-change">↗ +0%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">🎯</div>
+                    <div class="kpi-label">Taux de conversion</div>
+                    <div class="kpi-value" id="conversion-rate">0%</div>
+                    <span class="kpi-change positive" id="conversion-change">↗ +0%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-label">Checklists complétées</div>
+                    <div class="kpi-value" id="checklists-total">0</div>
+                    <span class="kpi-change positive" id="checklists-change">↗ +0%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">💵</div>
+                    <div class="kpi-label">Panier moyen</div>
+                    <div class="kpi-value" id="panier-moyen">0 €</div>
+                    <span class="kpi-change positive" id="panier-change">↗ +0%</span>
+                </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3>📈 Évolution du CA (30j)</h3>
+                    <div class="chart-container">
+                        <canvas id="caChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>🎯 Sources de trafic</h3>
+                    <div class="chart-container">
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3>📊 Ventes par produit</h3>
+                    <div class="chart-container">
+                        <canvas id="productsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>⏰ Heures de pointe</h3>
+                    <div class="chart-container">
+                        <canvas id="hoursChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOP PRODUITS TABLE -->
+            <div class="table-card">
+                <h3>🏆 Top Produits Performance</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produit</th>
+                            <th>Ventes</th>
+                            <th>CA</th>
+                            <th>Conv. rate</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTable">
+                        <tr>
+                            <td>Module 1 + Audit</td>
+                            <td>15</td>
+                            <td>3 375€</td>
+                            <td>4.2%</td>
+                            <td>
+                                <span class="status-dot success"></span>Excellent
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 85%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Module 2</td>
+                            <td>23</td>
+                            <td>3 335€</td>
+                            <td>5.1%</td>
+                            <td>
+                                <span class="status-dot success"></span>Excellent
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 90%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Audit Marketing</td>
+                            <td>12</td>
+                            <td>1 680€</td>
+                            <td>3.8%</td>
+                            <td>
+                                <span class="status-dot warning"></span>Moyen
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 2: VENTES -->
+        <div id="ventes" class="tab-content">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">💳</div>
+                    <div class="kpi-label">CA ce mois</div>
+                    <div class="kpi-value">5 890€</div>
+                    <span class="kpi-change positive">↗ +18%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">🎯</div>
+                    <div class="kpi-label">Objectif mensuel</div>
+                    <div class="kpi-value">10 000€</div>
+                    <div class="progress-bar" style="margin-top: 15px;">
+                        <div class="progress-fill" style="width: 59%"></div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">📅</div>
+                    <div class="kpi-label">Ventes aujourd'hui</div>
+                    <div class="kpi-value">3</div>
+                    <span class="kpi-change positive">↗ +50%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">💵</div>
+                    <div class="kpi-label">Revenu net</div>
+                    <div class="kpi-value">5 784€</div>
+                    <span class="kpi-change positive">Après frais Stripe</span>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3>📊 Historique des ventes (90 jours)</h3>
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="salesHistoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <h3>📝 Dernières transactions</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Produit</th>
+                            <th>Montant</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTable">
+                        <!-- Dynamique -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: TRAFIC -->
+        <div id="trafic" class="tab-content">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">📱</div>
+                    <div class="kpi-label">Instagram</div>
+                    <div class="kpi-value">45%</div>
+                    <span class="kpi-change positive">Source #1</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">🔍</div>
+                    <div class="kpi-label">Google</div>
+                    <div class="kpi-value">30%</div>
+                    <span class="kpi-change positive">Source #2</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">💼</div>
+                    <div class="kpi-label">LinkedIn</div>
+                    <div class="kpi-value">15%</div>
+                    <span class="kpi-change positive">Source #3</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">🔗</div>
+                    <div class="kpi-label">Direct</div>
+                    <div class="kpi-value">10%</div>
+                    <span class="kpi-change positive">Source #4</span>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3>📈 Trafic quotidien</h3>
+                    <div class="chart-container">
+                        <canvas id="dailyTrafficChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>🌍 Géographie</h3>
+                    <div class="chart-container">
+                        <canvas id="geoChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: PROSPECTS -->
+        <div id="prospects" class="tab-content">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-label">Checklists ce mois</div>
+                    <div class="kpi-value">87</div>
+                    <span class="kpi-change positive">↗ +23%</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">🔄</div>
+                    <div class="kpi-label">Taux de conversion</div>
+                    <div class="kpi-value">15.2%</div>
+                    <span class="kpi-change positive">Checklist → Vente</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">⏱️</div>
+                    <div class="kpi-label">Temps moyen</div>
+                    <div class="kpi-value">3min 24s</div>
+                    <span class="kpi-change positive">Remplissage checklist</span>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon">📧</div>
+                    <div class="kpi-label">Emails collectés</div>
+                    <div class="kpi-value">87</div>
+                    <span class="kpi-change positive">100% opt-in</span>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3>📊 Entonnoir de conversion</h3>
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="funnelChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <h3>📝 Derniers prospects</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Email</th>
+                            <th>Score</th>
+                            <th>Intérêt</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prospectsTable">
+                        <!-- Dynamique -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration — seule variable à modifier selon votre déploiement
+        const BASE_API_URL = 'https://votre-projet.vercel.app'; // ex: https://atea-kpi.vercel.app
+
+        // État global
+        let chartsInstances = {};
+        let currentRange = '30d';
+        let apiData = null; // données reçues du backend
+        let data = {
+            ca: 0, ventes: 0, visiteurs: 0,
+            conversion: 0, checklists: 0, panierMoyen: 0
+        };
+
+        // Switch tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Refresh data
+        async function refreshData(range) {
+            if (range) currentRange = range;
+            // Highlight active range button
+            ['30d','90d'].forEach(r => {
+                const btn = document.getElementById(`btn${r}`);
+                if (btn) btn.style.opacity = (currentRange === r) ? '1' : '0.5';
+            });
+            showLoading(true);
+            updateLastUpdate();
+            try {
+                await loadKpiData();
+            } catch(e) {
+                console.error('Erreur chargement KPI:', e);
+                showError(e.message);
+            }
+            showLoading(false);
+            updateKPIs();
+            updateCharts();
+        }
+
+        function showLoading(on) {
+            document.querySelectorAll('.kpi-value').forEach(el => {
+                if (on) el.style.opacity = '0.4';
+                else el.style.opacity = '1';
+            });
+        }
+
+        function showError(msg) {
+            const existing = document.getElementById('apiError');
+            if (existing) existing.remove();
+            const div = document.createElement('div');
+            div.id = 'apiError';
+            div.style.cssText = 'position:fixed;top:80px;right:20px;background:#EF5350;color:white;padding:12px 20px;border-radius:12px;z-index:999;max-width:350px;font-size:0.85rem;';
+            div.textContent = '⚠️ Erreur API: ' + msg;
+            setTimeout(() => div.remove(), 8000);
+            document.body.appendChild(div);
+        }
+
+        function updateLastUpdate() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `Dernière mise à jour : ${now.toLocaleTimeString('fr-FR')}`;
+        }
+
+        async function loadKpiData() {
+            const url = `${BASE_API_URL}/api/kpi?range=${currentRange}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || `HTTP ${res.status}`);
+            }
+            apiData = await res.json();
+
+            const k = apiData.kpis;
+            data.ca = k.ca_total;
+            data.ventes = k.ventes_total;
+            data.panierMoyen = k.panier_moyen;
+            data.visiteurs = k.visiteurs_total;
+            data.conversion = k.conversion_rate;
+            data.checklists = k.checklists_total;
+        }
+
+        function updateKPIs() {
+            document.getElementById('ca-total').textContent = `${data.ca.toLocaleString()} €`;
+            document.getElementById('ventes-total').textContent = data.ventes;
+            document.getElementById('visiteurs-total').textContent = data.visiteurs.toLocaleString();
+            document.getElementById('conversion-rate').textContent = `${data.conversion}%`;
+            document.getElementById('checklists-total').textContent = data.checklists;
+            document.getElementById('panier-moyen').textContent = `${data.panierMoyen} €`;
+        }
+
+        function updateCharts() {
+            if (!apiData) return;
+            const s = apiData.series;
+            const t = apiData.tables;
+
+            // ── CA Chart (30j / 90j) ──────────────────────────────────────────
+            const caLabels = s.ca_daily.map(d => {
+                const dt = new Date(d.date);
+                return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+            });
+            const caValues = s.ca_daily.map(d => d.amount);
+            createLineChart('caChart', 'Chiffre d\'affaires (€)', caValues, caLabels);
+
+            // ── Traffic sources ───────────────────────────────────────────────
+            const srcLabels = Object.keys(s.traffic_sources);
+            const srcValues = Object.values(s.traffic_sources);
+            const srcColors = srcLabels.map(l => {
+                const map = {
+                    'Instagram': '#E1306C', 'Google': '#4285F4', 'Google Ads': '#FBBC05',
+                    'Direct': '#8a7a69', 'LinkedIn': '#0077B5', 'Email': '#34A853',
+                    'Referral': '#a8957f'
+                };
+                return map[l] || '#b8a798';
+            });
+            createPieChart('trafficChart', srcLabels, srcValues, srcColors);
+
+            // ── Products ──────────────────────────────────────────────────────
+            createBarChart('productsChart',
+                s.sales_by_product.map(p => p.name),
+                s.sales_by_product.map(p => p.count)
+            );
+
+            // ── Hours ─────────────────────────────────────────────────────────
+            createLineChart('hoursChart', 'Ventes par heure',
+                s.sales_by_hour,
+                Array.from({ length: 24 }, (_, i) => `${i}h`)
+            );
+
+            // ── Sales History (90j) ───────────────────────────────────────────
+            const shLabels = s.ca_daily.map(d => {
+                const dt = new Date(d.date);
+                return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+            });
+            createLineChart('salesHistoryChart', 'CA quotidien (€)',
+                s.ca_daily.map(d => d.amount), shLabels, true
+            );
+
+            // ── Daily Traffic ─────────────────────────────────────────────────
+            const dtLabels = s.visitors_daily.map(d => {
+                const y = d.date.slice(0, 4), m = d.date.slice(4, 6), day = d.date.slice(6, 8);
+                return new Date(`${y}-${m}-${day}`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+            });
+            createLineChart('dailyTrafficChart', 'Visiteurs',
+                s.visitors_daily.map(d => d.users), dtLabels
+            );
+
+            // ── Geo Chart ─────────────────────────────────────────────────────
+            createBarChart('geoChart',
+                s.geo.map(g => g.country),
+                s.geo.map(g => g.share)
+            );
+
+            // ── Funnel ────────────────────────────────────────────────────────
+            const f = s.funnel;
+            createFunnelChart('funnelChart',
+                ['Visiteurs', 'Checklists', 'Page produit', 'Paiement', 'Achat'],
+                [f.visitors, f.checklist, f.product, f.checkout, f.purchase]
+            );
+
+            // ── Tables ────────────────────────────────────────────────────────
+            renderTransactions(t.transactions);
+            renderProspects(t.prospects);
+        }
+
+        function renderTransactions(rows) {
+            const tbody = document.getElementById('transactionsTable');
+            if (!tbody) return;
+            tbody.innerHTML = rows.length === 0
+                ? '<tr><td colspan="5" style="text-align:center;color:#999">Aucune transaction</td></tr>'
+                : rows.map(r => `
+                    <tr>
+                        <td>${r.date}</td>
+                        <td>${r.email}</td>
+                        <td>${r.product}</td>
+                        <td><strong>${r.amount}</strong></td>
+                        <td><span class="status-dot success"></span>${r.status}</td>
+                    </tr>`).join('');
+        }
+
+        function renderProspects(rows) {
+            const tbody = document.getElementById('prospectsTable');
+            if (!tbody) return;
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">Prospects via Google Sheets — voir README</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(r => `
+                <tr>
+                    <td>${r.date}</td>
+                    <td>${r.email}</td>
+                    <td>${r.score}</td>
+                    <td>${r.interest || '—'}</td>
+                    <td>${r.action || '—'}</td>
+                </tr>`).join('');
+        }
+
+        // Chart helpers
+        function createLineChart(canvasId, label, data, labels, area = false) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (chartsInstances[canvasId]) {
+                chartsInstances[canvasId].destroy();
+            }
+
+            // Support old call signature: createLineChart(id, label, data, bool)
+            if (typeof labels === 'boolean') { area = labels; labels = null; }
+            const finalLabels = labels || generateLabels(data.length);
+
+            chartsInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: finalLabels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: '#a8957f',
+                        backgroundColor: area ? 'rgba(168, 149, 127, 0.1)' : 'rgba(168, 149, 127, 0.5)',
+                        borderWidth: 3,
+                        fill: area,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#f0f0f0' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPieChart(canvasId, labels, data, colors) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (chartsInstances[canvasId]) {
+                chartsInstances[canvasId].destroy();
+            }
+
+            chartsInstances[canvasId] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors || ['#a8957f', '#d6bfa3', '#8a7a69', '#b8a798'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 20, font: { size: 12 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createBarChart(canvasId, labels, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (chartsInstances[canvasId]) {
+                chartsInstances[canvasId].destroy();
+            }
+
+            chartsInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: '#a8957f',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#f0f0f0' }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function createFunnelChart(canvasId, labels, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (chartsInstances[canvasId]) {
+                chartsInstances[canvasId].destroy();
+            }
+
+            // Calculate percentages
+            const percentages = data.map((val, i) => i === 0 ? 100 : ((val / data[0]) * 100).toFixed(1));
+
+            chartsInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map((label, i) => `${label} (${percentages[i]}%)`),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#4CAF50',
+                            '#66BB6A',
+                            '#81C784',
+                            '#A5D6A7',
+                            '#C8E6C9'
+                        ],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            beginAtZero: true,
+                            grid: { color: '#f0f0f0' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Helpers
+        function generateDailyData(days, min, max) {
+            return Array.from({ length: days }, () => 
+                Math.floor(Math.random() * (max - min + 1)) + min
+            );
+        }
+
+        function generateLabels(count) {
+            const labels = [];
+            for (let i = count - 1; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                labels.push(date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+            }
+            return labels;
+        }
+
+        // Export PDF (simulation)
+        function exportToPDF() {
+            alert('Export PDF en cours de développement...\nUtilisez Imprimer → Enregistrer en PDF');
+            window.print();
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshData('30d');
+            // Auto-refresh toutes les 5 minutes
+            setInterval(() => refreshData(), 5 * 60 * 1000);
+        });
+    </script>
+</body>
+</html>
